@@ -134,6 +134,34 @@ def test_invented_quotes_never_become_claims(state):
     assert data["claims_dropped_unverifiable"] == 1
 
 
+def test_a_pair_cannot_be_compared_twice(state):
+    """Regression. reflect once gave the same instruction two rounds running,
+    and nothing stopped the tool running it again — the same contradiction got
+    recorded twice, so a report of 2 real findings showed 3."""
+    c1 = next(c for c in state.chunks if c["section"] == "2.1" and c["kind"] == "text")
+    c2 = next(c for c in state.chunks if c["section"] == "7.4" and c["kind"] == "text")
+    state.llm = FakeLLM({"extraction": [
+        extracted((QUOTE, "NUMBERS", "system log retention", "30 days")),
+        extracted(("System logs must be kept for a minimum of 90 days",
+                   "NUMBERS", "system log retention", "90 days")),
+    ]})
+    tools_ = build_tools(state)
+    act({"action": "extract_claims", "params": {"chunk_ids": [c1["id"]]}}, tools_)
+    act({"action": "extract_claims", "params": {"chunk_ids": [c2["id"]]}}, tools_)
+
+    state.llm = FakeLLM({"comparison": [{
+        "same_subject": True, "verdict": "contradiction", "type": "NUMBERS",
+        "guard": "none", "confidence": 0.9, "reasoning": "30 vs 90",
+    }]})
+    first = act({"action": "compare_claims",
+                "params": {"claim_a": "clm_001", "claim_b": "clm_002"}}, tools_)
+    assert first["ok"] is True and first["data"]["is_contradiction"] is True
+
+    second = act({"action": "compare_claims",
+                 "params": {"claim_a": "clm_001", "claim_b": "clm_002"}}, tools_)
+    assert second["ok"] is False and "already compared" in second["error"]["message"]
+
+
 def test_python_does_the_arithmetic_not_the_model():
     """"30 days" and "720 hours" are the same quantity, so they cannot conflict —
     and the model gets no vote on that."""

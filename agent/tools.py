@@ -336,6 +336,16 @@ def _compare_claims(state: State, params: dict) -> dict:
         missing = [p for p in (params["claim_a"], params["claim_b"]) if p not in state.claims]
         raise ToolError(f"no such claim(s): {missing}")
 
+    # The tool description tells the model not to repeat a pair, but that's
+    # only a prompt hint - nothing enforced it. reflect once gave the same
+    # instruction two rounds running and the second call quietly recorded
+    # the same contradiction a second time, so the report showed 3 findings
+    # for 2 real ones. Refusing here means a repeat costs a cheap ok:False
+    # instead of a wasted LLM call and a duplicate finding.
+    pair_key = state.pair(a["id"], b["id"])
+    if pair_key in state.compared:
+        raise ToolError(f"already compared: {pair_key[0]}/{pair_key[1]}")
+
     arithmetic, values_equal = compare_values(a["value"], b["value"])
 
     verdict = state.llm.complete_json(

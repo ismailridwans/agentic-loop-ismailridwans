@@ -36,11 +36,14 @@ llm:
   timeout_s: 120
 
 loop:
-  # focus_size=2 means a 23-chunk document takes ~12 rounds to read. Slower,
-  # but each extract_claims call emits a much shorter JSON array, which is
-  # what keeps it inside the completion budget.
-  max_iterations: 12
-  focus_size: 2
+  # focus_size=2 was set to survive gpt-oss-120b's 8000 TPM reservation cap.
+  # Now everything runs on gpt-oss-20b, which handled the full read phase
+  # with no truncation and no 413s at this batch size - so 2 was leaving
+  # almost the whole iteration budget spent on reading. 5 means a 23-chunk
+  # document reads in ~5 rounds, leaving real headroom to compare pairs
+  # before max_iterations is hit.
+  max_iterations: 14
+  focus_size: 5
 
 budget:
   max_tokens: 150000                # ~5 cents a run at gpt-oss-120b prices

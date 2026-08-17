@@ -386,10 +386,17 @@ def run_loop(doc_path: str, llm: Any, *, cfg: Any = None, memory: Any = None,
             if harness.is_quota_exhausted(exc):
                 status = harness.BUDGET_EXCEEDED
                 if logger:
+                    # Each gpt-oss model on Groq has its own separate daily
+                    # bucket. If a different one isn't already exhausted too,
+                    # --model names it as a way to keep working today; if it
+                    # is, this is just naming what's already true.
+                    other = ("openai/gpt-oss-120b" if cfg.llm.model == "openai/gpt-oss-20b"
+                            else "openai/gpt-oss-20b")
                     logger.warn(
                         f"Groq daily token quota is spent for {cfg.llm.model}. "
-                        f"Either wait for the reset, or run with "
-                        f"--model openai/gpt-oss-20b (separate daily bucket)."
+                        f"Wait for the daily reset (UTC midnight), check remaining "
+                        f"quota at console.groq.com/settings/billing, or try "
+                        f"--model {other} if that one hasn't also been used up today."
                     )
             else:
                 status = harness.FAILED
