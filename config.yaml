@@ -1,0 +1,63 @@
+# Every runtime parameter. Nothing in the core loop is hardcoded.
+# Precedence: command-line flag > environment variable > this file > default.
+
+llm:
+  provider: groq
+  base_url: https://api.groq.com/openai/v1
+  # On Groq only the gpt-oss models support strict structured outputs, where
+  # constrained decoding makes a schema violation impossible. The loop depends on
+  # `reason` returning a parseable plan, so the model choice follows from that.
+  #
+  # Both fields point at gpt-oss-20b. 120b was the original split (120b for
+  # reason/compare, 20b for extraction) but 120b's free-tier daily quota on
+  # this account ran out mid-testing, and its per-minute reservation cap
+  # (8000 TPM) is tighter than 20b's. Staying on one model keeps everything
+  # on the bucket that's actually available, still 100% Groq, still strict
+  # structured outputs. Same fields either way, so this is a one-line change
+  # back to a two-model split once quota allows it.
+  model: openai/gpt-oss-20b         # reason, compare_claims
+  fast_model: openai/gpt-oss-20b    # extract_claims
+  temperature: 0
+  # The gpt-oss models are REASONING models: their internal reasoning tokens
+  # count against this budget before a single character of JSON is emitted.
+  # 4096 alone caused truncation; 16384 fixed that but then got rejected
+  # outright — Groq reserves the full max_completion_tokens against the
+  # per-minute cap up front (8000 TPM on this tier for gpt-oss-120b), so a
+  # request asking to reserve 16384 fails before it even runs. 4096 stays
+  # under that reservation cap while reasoning_effort=low below keeps actual
+  # usage low enough not to truncate.
+  max_completion_tokens: 4096
+  # ...and this is the other half of that fix. Low reasoning effort on an
+  # extraction task costs almost no quality — copying sentences out of a
+  # chunk is not a thinking problem — but cuts token burn sharply, which
+  # matters against a 200k/day cap.
+  reasoning_effort: low             # low | medium | high, gpt-oss only
+  strict_schema: true               # false -> forces the JSON repair ladder
+  timeout_s: 120
+
+loop:
+  # focus_size=2 means a 23-chunk document takes ~12 rounds to read. Slower,
+  # but each extract_claims call emits a much shorter JSON array, which is
+  # what keeps it inside the completion budget.
+  max_iterations: 12
+  focus_size: 2
+
+budget:
+  max_tokens: 150000                # ~5 cents a run at gpt-oss-120b prices
+  warn_at: 100000
+
+retry:
+  max_attempts: 4
+  base_delay_s: 1.0
+  max_delay_s: 30.0
+  honour_retry_after: true          # Groq sends it; trust it over our own maths
+
+memory:
+  backend: chroma                   # chroma | dict | none
+  persist_dir: .memory
+  recall_k: 6
+
+logging:
+  jsonl_path: logs/run-{run_id}.jsonl
+  console: true
+  max_field_chars: 200

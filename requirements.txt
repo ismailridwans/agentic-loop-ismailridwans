@@ -1,0 +1,12 @@
+# M1 — the loop
+openai==1.109.1        # OpenAI-compatible client, pointed at Groq's endpoint
+jsonschema==4.25.0     # validate tool params before dispatch
+python-dotenv==1.1.1   # load GROQ_API_KEY from .env
+
+# M2 — memory
+chromadb==1.0.15       # local vector store; embeds with all-MiniLM-L6-v2
+
+# M3 — config
+PyYAML==6.0.2
+
+pytest==8.4.1

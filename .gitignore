@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# M2
+.memory/
+
+# M3
+logs/
+reports/
+report.json

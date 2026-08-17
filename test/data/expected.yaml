@@ -1,0 +1,42 @@
+# Ground truth for test/data/policy.md
+#
+# Written by hand, before any code. Both lists matter, but the second one is the
+# real test — anyone can score well on `should_find` by flagging everything.
+
+should_find:
+  - type: NUMBERS
+    sections: ["2.1", "7.4"]
+    about: system log retention
+    why: >
+      2.1 says all system logs are kept 30 days and applies to "every service and
+      every region". 7.4 says system logs must be kept a minimum of 90 days. Same
+      subject, disjoint values, and 2.1 leaves no room for an exception.
+
+  - type: RULES
+    sections: ["3.2", "5.1"]
+    about: encryption at rest
+    why: >
+      3.2 says all customer data at rest must be encrypted "without exception".
+      5.1 makes it optional for internal buckets and explicitly includes buckets
+      holding customer data.
+
+  - type: MEANING
+    sections: ["1.3", "6.2"]
+    about: definition of "active user"
+    why: >
+      1.3 defines an active user as someone who signed in within 7 days. 6.2 counts
+      every account not marked deleted. The same term is given two incompatible
+      definitions with no supersession language.
+
+should_not_find:
+  - sections: ["4.1", "4.2"]
+    guard: different_things
+    why: >
+      5 GB and 50 GB are storage allowances for two different subscription tiers.
+      Different subjects, so no conflict.
+
+  - sections: ["2.1", "2.3"]
+    guard: stated_exception
+    why: >
+      2.3 names Section 2.1 and states an exception to it. A rule plus its own
+      declared exception is not a contradiction.
